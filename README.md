@@ -315,7 +315,7 @@ Logging is handled by Uvicorn and FastAPI. The log level can be configured using
 -   **Model Loading**: The BLIP model is loaded into memory when the service starts. This can take some time and consume significant memory, especially the larger versions of the model.
 -   **Error Handling**: The API endpoints include basic error handling (e.g., for file not found or invalid file types). Check the API responses for specific error messages. Asynchronous tasks will report errors through the status endpoint.
 
-## Future Enhancements (Suggestions)
+## Future Enhancements
 
 *   Endpoint to check the status and retrieve results of asynchronous tasks. (Implemented)
 *   More robust configuration management (e.g., using environment variables or a config file via `pydantic-settings`). (Implemented)
