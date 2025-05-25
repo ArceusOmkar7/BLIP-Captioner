@@ -195,6 +195,38 @@ The service exposes the following API endpoints:
     ```
     *(Note: The actual implementation of task status checking is not detailed here but would be a common pattern for async tasks.)*
 
+    **Update (May 2024):** The asynchronous batch captioning endpoint has been enhanced for robustness. Uploaded images are now saved to temporary storage before being queued for background processing. This ensures that the image files are reliably available to the background worker, mitigating issues with temporary file lifecycles. The `task_id` returned can be used with the `/async-batch-caption/status/{task_id}` endpoint to retrieve results.
+
+### Check Asynchronous Task Status
+
+*   **Endpoint:** `GET /task-status/{task_id}`
+*   **Description:** Checks the status of an asynchronous captioning task and retrieves results if completed.
+*   **Path Parameter:**
+    *   `task_id`: The ID of the task returned by the `/async-batch-caption` endpoint.
+*   **Response (200 OK):**
+    ```json
+    {
+      "task_id": "some-unique-task-id",
+      "status": "completed",  // or "in_progress", "failed", etc.
+      "results": [
+        {
+          "image_path": "path/to/image1.jpg",
+          "caption": "Caption for image 1."
+        },
+        {
+          "image_path": "path/to/image2.jpg",
+          "caption": "Caption for image 2."
+        }
+      ]
+    }
+    ```
+*   **Error Response (e.g., 404 Not Found if task_id is invalid):**
+    ```json
+    {
+      "detail": "Error message"
+    }
+    ```
+
 ## Docker Deployment
 
 The project includes Dockerfiles for building container images for both CPU and GPU environments.
@@ -279,14 +311,15 @@ Logging is handled by Uvicorn and FastAPI. The log level can be configured using
 
 ## Important Notes
 
--   **Image Access**: This service requires direct file system access to the images. It does not handle file uploads itself. If integrating with a web application, that application would typically handle uploads and then provide this service with the path to the stored image.
+-   **Image Access**: This service requires direct file system access to the images for synchronous endpoints. For the asynchronous batch endpoint, images are uploaded, temporarily stored by the server, and then processed. It does not handle file uploads itself in the sense of persistent storage beyond the scope of a request or background task. If integrating with a web application, that application would typically handle uploads and then provide this service with the path to the stored image for synchronous operations, or upload directly for asynchronous ones.
 -   **Model Loading**: The BLIP model is loaded into memory when the service starts. This can take some time and consume significant memory, especially the larger versions of the model.
--   **Error Handling**: The API endpoints include basic error handling (e.g., for file not found). Check the API responses for specific error messages.
+-   **Error Handling**: The API endpoints include basic error handling (e.g., for file not found or invalid file types). Check the API responses for specific error messages. Asynchronous tasks will report errors through the status endpoint.
 
 ## Future Enhancements (Suggestions)
 
-*   Endpoint to check the status and retrieve results of asynchronous tasks.
+*   Endpoint to check the status and retrieve results of asynchronous tasks. (Implemented)
 *   More robust configuration management (e.g., using environment variables or a config file).
 *   Support for image URLs instead of just file paths.
-*   More detailed error reporting and standardized error codes.
+*   More detailed error reporting and standardized error codes. (Partially addressed with per-image errors and async task status)
 *   Unit and integration tests.
+*   Improved robustness of asynchronous processing by pre-saving files. (Implemented)

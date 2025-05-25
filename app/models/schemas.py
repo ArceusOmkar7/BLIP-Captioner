@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List
+from enum import Enum
+from typing import Any, List, Optional, Dict
 
 
 class CaptionResponse(BaseModel):
@@ -13,3 +14,29 @@ class BatchCaptionResponse(BaseModel):
     """Response model for batch captioning results."""
     results: List[CaptionResponse]
     total_processing_time: float
+
+
+class ImageCaptionResult(BaseModel):
+    image_path: str
+    caption: Optional[str] = None
+    error: Optional[str] = None
+
+
+class TaskStatus(str, Enum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class AsyncTaskStatus(BaseModel):
+    task_id: str
+    status: TaskStatus
+    message: Optional[str] = None
+    result: Optional[List[ImageCaptionResult]] = None
+    error_details: Optional[str] = None
+
+
+class AsyncBatchCaptionResponse(BaseModel):
+    message: str
+    task_id: str
