@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BLIP Image Captioning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="font-sans bg-gray-100">
+    <div
+      class="container bg-white p-6 md:p-8 rounded-lg shadow-xl max-w-4xl mx-auto my-8"
+    >
+      <h1 class="text-3xl font-bold text-gray-800 text-center mb-6">
+        BLIP Image Captioning Service
+      </h1>
+
+      <div
+        class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 my-6 rounded-md shadow-sm"
+      >
+        <p class="font-semibold">Service Note:</p>
+        <p class="mt-1">
+          This interface allows you to generate captions for images by uploading them directly.
+        </p>
+      </div>
+
+      <div class="tabs flex border-b border-gray-300 mb-6">
+        <div
+          class="tab py-3 px-5 cursor-pointer focus:outline-none text-blue-600 bg-white border-t border-l border-r border-gray-300 rounded-t-lg font-semibold"
+          data-tab="single"
+        >
+          Single Image
+        </div>
+        <div
+          class="tab py-3 px-5 cursor-pointer focus:outline-none text-gray-500 bg-gray-100 hover:text-gray-700 hover:bg-gray-200 rounded-t-lg"
+          data-tab="batch"
+        >
+          Batch Processing
+        </div>
+      </div>
+
+      <!-- Single Image Tab Content -->
+      <div id="singleTab" class="tab-content">
+        <div class="mb-6">
+          <label
+            for="singleImageUpload"
+            class="block text-sm font-medium text-gray-700 mb-2"
+            >Upload Image:</label
+          >
+          <input
+            type="file"
+            id="singleImageUpload"
+            accept="image/*"
+            class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div class="flex justify-end">
+          <button
+            id="generateSingleBtn"
+            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md shadow-md hover:shadow-lg transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Generate Caption
+          </button>
+        </div>
+
+        <div class="result-container w-full mt-6">
+          <h3 class="text-xl font-semibold text-gray-700 mb-2">Result:</h3>
+          <div
+            id="singleResult"
+            class="result-box bg-gray-50 border border-gray-200 rounded-md p-4 min-h-[60px] text-gray-700 shadow-sm"
+          >
+            No caption generated yet.
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch Processing Tab Content -->
+      <div id="batchTab" class="tab-content hidden">
+        <div class="mb-6">
+          <label
+            for="batchImageUpload"
+            class="block text-sm font-medium text-gray-700 mb-2"
+            >Upload Multiple Images:</label
+          >
+          <input
+            type="file"
+            id="batchImageUpload"
+            accept="image/*"
+            multiple
+            class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div class="flex justify-end">
+          <button
+            id="generateBatchBtn"
+            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md shadow-md hover:shadow-lg transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Generate Captions
+          </button>
+        </div>
+
+        <div class="result-container w-full mt-6">
+          <h3 class="text-xl font-semibold text-gray-700 mb-2">Results:</h3>
+          <div
+            id="batchResults"
+            class="result-box bg-gray-50 border border-gray-200 rounded-md p-4 min-h-[60px] text-gray-700 shadow-sm"
+          >
+            No captions generated yet.
+          </div>
+        </div>
+      </div>
+
+      <div id="loading" class="loading hidden text-center my-5 p-4">
+        <p class="text-lg text-blue-600 font-semibold animate-pulse">
+          Generating captions...
+        </p>
+      </div>
+
+      <div
+        id="error"
+        class="error hidden bg-red-50 border-l-4 border-red-500 text-red-700 p-4 my-5 rounded-md shadow-sm"
+      ></div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Tab switching functionality
+        const tabs = document.querySelectorAll(".tab");
+        const tabContents = document.querySelectorAll(".tab-content");
+
+        tabs.forEach((tab) => {
+          tab.addEventListener("click", () => {
+            // Remove active class from all tabs
+            tabs.forEach((t) => {
+              t.classList.remove("text-blue-600", "bg-white");
+              t.classList.add("text-gray-500", "bg-gray-100");
+            });
+
+            // Add active class to current tab
+            tab.classList.remove("text-gray-500", "bg-gray-100");
+            tab.classList.add("text-blue-600", "bg-white");
+
+            // Hide all tab contents
+            tabContents.forEach((content) => {
+              content.classList.add("hidden");
+            });
+
+            // Show active tab content
+            const tabId = tab.getAttribute("data-tab");
+            document.getElementById(tabId + "Tab").classList.remove("hidden");
+
+            // Clear error message when switching tabs
+            document.getElementById("error").classList.add("hidden");
+            document.getElementById("error").textContent = "";
+          });
+        });
+
+        // DOM elements
+        const singleImageUpload = document.getElementById("singleImageUpload");
+        const batchImageUpload = document.getElementById("batchImageUpload");
+        const generateSingleBtn = document.getElementById("generateSingleBtn");
+        const generateBatchBtn = document.getElementById("generateBatchBtn");
+        const singleResult = document.getElementById("singleResult");
+        const batchResults = document.getElementById("batchResults");
+        const loading = document.getElementById("loading");
+        const error = document.getElementById("error");
+
+        // Single image caption generation
+        generateSingleBtn.addEventListener("click", async () => {
+          if (!singleImageUpload.files || singleImageUpload.files.length === 0) {
+            error.textContent = "Please select an image file.";
+            error.classList.remove("hidden");
+            singleResult.textContent = "No image selected.";
+            return;
+          }
+
+          const file = singleImageUpload.files[0];
+          if (!file.type.startsWith("image/")) {
+            error.textContent = "Please select a valid image file.";
+            error.classList.remove("hidden");
+            singleResult.textContent = "Invalid file type.";
+            return;
+          }
+
+          loading.classList.remove("hidden");
+          error.classList.add("hidden");
+          singleResult.textContent = "Processing...";
+          generateSingleBtn.disabled = true;
+
+          try {
+            const formData = new FormData();
+            formData.append("image", file);
+
+            const response = await fetch("/caption", {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(data.detail || "Caption generation failed");
+            }
+
+            singleResult.innerHTML = `
+              <p><strong class="font-semibold text-gray-800">Image:</strong> <span class="text-gray-700 break-all">${
+                data.filename
+              }</span></p>
+              <p><strong class="font-semibold text-gray-800">Caption:</strong> <span class="text-gray-700">${
+                data.caption
+              }</span></p>
+              <p><strong class="font-semibold text-gray-800">Processing Time:</strong> <span class="text-gray-700">${data.processing_time.toFixed(
+                2
+              )}s</span></p>
+            `;
+          } catch (err) {
+            error.textContent = "Error: " + err.message;
+            error.classList.remove("hidden");
+            singleResult.innerHTML = `<p class="text-red-600">Caption generation failed: ${err.message}</p>`;
+          } finally {
+            loading.classList.add("hidden");
+            generateSingleBtn.disabled = false;
+          }
+        });
+
+        // Batch image caption generation
+        generateBatchBtn.addEventListener("click", async () => {
+          if (!batchImageUpload.files || batchImageUpload.files.length === 0) {
+            error.textContent = "Please select at least one image file.";
+            error.classList.remove("hidden");
+            batchResults.textContent = "No images selected.";
+            return;
+          }
+
+          loading.classList.remove("hidden");
+          error.classList.add("hidden");
+          batchResults.innerHTML = '<p class="text-gray-600">Processing...</p>';
+          generateBatchBtn.disabled = true;
+
+          try {
+            const formData = new FormData();
+            
+            // Append all files to formData
+            for (let i = 0; i < batchImageUpload.files.length; i++) {
+              formData.append("images", batchImageUpload.files[i]);
+            }
+
+            const response = await fetch("/batch-caption", {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(data.detail || "Batch caption generation failed");
+            }
+
+            // Format results
+            let resultsHTML = `
+              <div class="mb-4 text-gray-600">
+                <p>Total processing time: ${data.total_processing_time.toFixed(2)}s</p>
+                <p>Total images processed: ${data.results.length}</p>
+              </div>
+              <div class="grid gap-4">
+            `;
+
+            data.results.forEach((result) => {
+              resultsHTML += `
+                <div class="p-3 border border-gray-200 rounded-md bg-white">
+                  <p><strong class="font-semibold">Image:</strong> ${result.filename}</p>
+                  <p><strong class="font-semibold">Caption:</strong> ${result.caption}</p>
+                  <p><strong class="font-semibold">Processing Time:</strong> ${result.processing_time.toFixed(2)}s</p>
+                </div>
+              `;
+            });
+
+            resultsHTML += "</div>";
+
+            // Add failed images info if available
+            if (data.failed_images && Object.keys(data.failed_images).length > 0) {
+              resultsHTML += `
+                <div class="mt-4 p-3 border border-orange-200 rounded-md bg-orange-50">
+                  <p class="font-semibold text-orange-700">Failed Images:</p>
+                  <ul class="list-disc pl-5 mt-2 text-orange-700">
+              `;
+              
+              for (const [imageName, errorMsg] of Object.entries(data.failed_images)) {
+                resultsHTML += `<li>${imageName}: ${errorMsg}</li>`;
+              }
+              
+              resultsHTML += `
+                  </ul>
+                </div>
+              `;
+            }
+
+            batchResults.innerHTML = resultsHTML;
+
+          } catch (err) {
+            error.textContent = "Error: " + err.message;
+            error.classList.remove("hidden");
+            batchResults.innerHTML = `<p class="text-red-600">Batch caption generation failed: ${err.message}</p>`;
+          } finally {
+            loading.classList.add("hidden");
+            generateBatchBtn.disabled = false;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
