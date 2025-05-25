@@ -8,9 +8,16 @@ to the main backend service. Images are sent to this service in either batch or 
 
 import uvicorn
 from .api import create_app
+from .core.config import settings, logger  # Import settings and logger
 
 # Create the FastAPI application
 app = create_app()
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    # This block is typically for direct execution of main.py (e.g., python app/main.py)
+    # It's often better to use run.py or uvicorn command directly for more control.
+    # Using settings from config for consistency if run directly.
+    logger.info(
+        f"Running directly from app/main.py on {settings.HOST}:{settings.PORT}")
+    uvicorn.run(app, host=settings.HOST, port=settings.PORT,
+                reload=settings.RELOAD, log_level=settings.LOG_LEVEL.lower())

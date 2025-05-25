@@ -318,8 +318,7 @@ Logging is handled by Uvicorn and FastAPI. The log level can be configured using
 ## Future Enhancements (Suggestions)
 
 *   Endpoint to check the status and retrieve results of asynchronous tasks. (Implemented)
-*   More robust configuration management (e.g., using environment variables or a config file).
-*   Support for image URLs instead of just file paths.
+*   More robust configuration management (e.g., using environment variables or a config file via `pydantic-settings`). (Implemented)
 *   More detailed error reporting and standardized error codes. (Partially addressed with per-image errors and async task status)
 *   Unit and integration tests.
 *   Improved robustness of asynchronous processing by pre-saving files. (Implemented)

@@ -188,11 +188,24 @@ async def batch_caption_images(images: List[UploadFile] = File(...)):
 
 
 async def process_batch_images_async(task_id: str, prepared_files: List[Dict[str, str]], initial_results: List[ImageCaptionResult]):
-    """
-    Background task to process a batch of pre-saved images asynchronously.
-    Updates the task_store with status and results.
-    `prepared_files` contains dicts like: {"path": "/tmp/xyz", "original_name": "foo.jpg"}
-    `initial_results` contains ImageCaptionResult for files that failed pre-processing.
+    """Processes a batch of pre-saved images asynchronously in a background task.
+
+    This function is intended to be run as a background task. It iterates through
+    a list of image files that have already been saved to temporary paths,
+    generates captions for them, and updates an in-memory task store with the
+    status and results. It also handles cleanup of the temporary files.
+
+    Args:
+        task_id: The unique identifier for the asynchronous task. This ID is used
+            to update the status and results in the `task_store`.
+        prepared_files: A list of dictionaries, where each dictionary contains
+            information about a pre-saved image file. Expected keys are:
+            - "path" (str): The absolute temporary path to the saved image file.
+            - "original_name" (str): The original filename of the uploaded image.
+        initial_results: A list of `ImageCaptionResult` objects representing
+            images that may have failed during the pre-processing (saving) stage
+            before this background task was initiated. These are combined with
+            the results from this function.
     """
     if task_id not in task_store:
         logger.error(
@@ -277,10 +290,27 @@ async def async_batch_caption_images_endpoint(
     background_tasks: BackgroundTasks,
     images: List[UploadFile] = File(...)
 ):
-    """
-    Accepts multiple images for captioning. Images are saved to temporary files
-    and then processed asynchronously in the background.
-    Returns a task ID to check for status and results.
+    """Accepts multiple image files, saves them temporarily, and queues them for asynchronous captioning.
+
+    This endpoint initiates an asynchronous batch image captioning task.
+    It first saves the uploaded images to temporary storage to ensure their
+    availability for the background process. Then, it creates a task entry
+    in an in-memory store and schedules a background task to process the images.
+    An immediate response is returned containing a task ID, which can be used
+    to poll for the status and results of the captioning task.
+
+    Args:
+        background_tasks: FastAPI's `BackgroundTasks` utility to schedule
+            the image processing task to run in the background.
+        images: A list of `UploadFile` objects representing the images
+            uploaded by the client for captioning.
+
+    Returns:
+        AsyncBatchCaptionResponse: An object containing a message indicating
+            the task has been accepted and the unique `task_id` for status polling.
+
+    Raises:
+        HTTPException: If no images are provided in the request (status code 400).
     """
     if not images:
         raise HTTPException(status_code=400, detail="No images provided.")
@@ -376,8 +406,25 @@ async def async_batch_caption_images_endpoint(
 
 @router.get("/async-batch-caption/status/{task_id}", response_model=AsyncTaskStatus)
 async def get_async_batch_caption_status(task_id: str):
-    """
-    Retrieves the status and results of an asynchronous batch captioning task.
+    """Retrieves the status and results of an asynchronous batch captioning task.
+
+    This endpoint allows clients to poll for the current status of an
+    asynchronous image captioning task initiated via the
+    `/async-batch-caption` endpoint. It returns the task's current state
+    (e.g., PENDING, PROCESSING, COMPLETED, FAILED), any messages, and
+    the captioning results if the task is completed.
+
+    Args:
+        task_id: The unique identifier of the asynchronous task,
+            as returned by the `/async-batch-caption` endpoint.
+
+    Returns:
+        AsyncTaskStatus: An object detailing the current status of the task,
+            including any processed image results or error information.
+
+    Raises:
+        HTTPException: If a task with the provided `task_id` is not found
+            (status code 404).
     """
     task = task_store.get(task_id)
     if not task:
