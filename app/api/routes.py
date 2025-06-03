@@ -29,8 +29,19 @@ task_store: Dict[str, AsyncTaskStatus] = {}
 
 @router.get("/health")
 async def health_check():
-    """Health check endpoint to verify API status."""
-    return {"status": "healthy", "service": "BLIP Image Captioning API"}
+    """Health check endpoint to verify API status with response time and version."""
+    start_time = time.time()
+    
+    # Calculate response time
+    response_time = round((time.time() - start_time) * 1000, 2)
+    
+    return {
+        "status": "healthy", 
+        "service": "BLIP Image Captioning API",
+        "version": "1.0.0",
+        "response_time": f"{response_time} ms",
+        "timestamp": time.time()
+    }
 
 
 @router.get("/")
