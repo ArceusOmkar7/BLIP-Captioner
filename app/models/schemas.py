@@ -7,18 +7,20 @@ class CaptionResponse(BaseModel):
     """Response model containing caption and metadata."""
     filename: str
     caption: str
+    tags: List[str] = []
     processing_time: float
 
 
 class BatchCaptionResponse(BaseModel):
     """Response model for batch captioning results."""
-    results: List[CaptionResponse]
+    results: List["ImageCaptionResult"]
     total_processing_time: float
 
 
 class ImageCaptionResult(BaseModel):
     image_path: str
     caption: Optional[str] = None
+    tags: Optional[List[str]] = None
     error: Optional[str] = None
 
 

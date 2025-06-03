@@ -4,12 +4,14 @@ A microservice that generates captions for images using the Salesforce BLIP (Boo
 
 ## Features
 
-*   Generates descriptive captions for images.
+*   Generates descriptive captions for images using BLIP model.
+*   Extracts meaningful tags from captions using spaCy NLP processing.
 *   Supports single image captioning and batch processing.
 *   Offers asynchronous batch captioning for non-blocking operations.
 *   Configurable host, port, worker count, and logging level.
 *   Includes Dockerfiles for CPU and GPU environments.
 *   Basic health check endpoint.
+*   Robust error handling and edge case management.
 
 ## Architecture
 
@@ -48,6 +50,12 @@ This service is intended to function as a specialized microservice, potentially 
     The project uses `requirements.txt` to manage dependencies.
     ```bash
     pip install -r requirements.txt
+    ```
+
+4.  **Install spaCy English model:**
+    The tags extraction feature requires the English language model for spaCy.
+    ```bash
+    python -m spacy download en_core_web_sm
     ```
 
 ## Running the Service
@@ -118,22 +126,18 @@ The service exposes the following API endpoints:
 ### Caption a Single Image
 
 *   **Endpoint:** `POST /caption`
-*   **Description:** Generates a caption for a single image.
-*   **Request Body:**
-    ```json
-    {
-      "image_path": "path/to/your/image.jpg"
-    }
-    ```
-    The `image_path` should be an absolute path or a path accessible by the server.
+*   **Description:** Generates a caption and extracts tags for a single image.
+*   **Request Body:** Form data with image file upload
 *   **Response (200 OK):**
     ```json
     {
-      "image_path": "path/to/your/image.jpg",
-      "caption": "A descriptive caption of the image."
+      "filename": "your_image.jpg",
+      "caption": "A descriptive caption of the image.",
+      "tags": ["tag1", "tag2", "tag3"],
+      "processing_time": 1.23
     }
     ```
-*   **Error Response (e.g., 404 Not Found if image_path is invalid, 500 for processing errors):**
+*   **Error Response (e.g., 400 Bad Request for invalid file, 500 for processing errors):**
     ```json
     {
       "detail": "Error message"
@@ -143,79 +147,64 @@ The service exposes the following API endpoints:
 ### Caption Multiple Images (Batch Processing)
 
 *   **Endpoint:** `POST /batch-caption`
-*   **Description:** Generates captions for multiple images in a single request. Processed sequentially in the request-response cycle.
-*   **Request Body:**
-    ```json
-    {
-      "image_paths": [
-        "path/to/image1.jpg",
-        "path/to/image2.jpg",
-        "path/to/another/image.png"
-      ]
-    }
-    ```
+*   **Description:** Generates captions and extracts tags for multiple images in a single request. Processed sequentially in the request-response cycle.
+*   **Request Body:** Form data with multiple image file uploads
 *   **Response (200 OK):**
     ```json
-    [
-      {
-        "image_path": "path/to/image1.jpg",
-        "caption": "Caption for image 1."
-      },
-      {
-        "image_path": "path/to/image2.jpg",
-        "caption": "Caption for image 2."
-      },
-      {
-        "image_path": "path/to/another/image.png",
-        "caption": "Caption for another image."
-      }
-    ]
+    {
+      "results": [
+        {
+          "image_path": "image1.jpg",
+          "caption": "Caption for image 1.",
+          "tags": ["tag1", "tag2"]
+        },
+        {
+          "image_path": "image2.jpg",
+          "caption": "Caption for image 2.",
+          "tags": ["tag3", "tag4"]
+        }
+      ],
+      "total_processing_time": 2.45
+    }
     ```
 
 ### Asynchronous Batch Captioning
 
 *   **Endpoint:** `POST /async-batch-caption`
-*   **Description:** Accepts multiple images for captioning and processes them asynchronously using background tasks. This endpoint returns immediately with a task ID.
-*   **Request Body:**
-    ```json
-    {
-      "image_paths": [
-        "path/to/image1.jpg",
-        "path/to/image2.jpg"
-      ]
-    }
-    ```
+*   **Description:** Accepts multiple images for captioning and tags extraction, processing them asynchronously using background tasks. This endpoint returns immediately with a task ID.
+*   **Request Body:** Form data with multiple image file uploads
 *   **Response (202 Accepted):**
     ```json
     {
-      "message": "Batch captioning started in the background.",
-      "task_id": "some-unique-task-id"
-      // You might need another endpoint to check the status/result of this task_id
+      "message": "Batch captioning task accepted. X files queued. Check status for details.",
+      "task_id": "task_1672531200_a1b2c3d4"
     }
     ```
-    *(Note: The actual implementation of task status checking is not detailed here but would be a common pattern for async tasks.)*
 
-    **Update (May 2024):** The asynchronous batch captioning endpoint has been enhanced for robustness. Uploaded images are now saved to temporary storage before being queued for background processing. This ensures that the image files are reliably available to the background worker, mitigating issues with temporary file lifecycles. The `task_id` returned can be used with the `/async-batch-caption/status/{task_id}` endpoint to retrieve results.
+    **Update (June 2025):** The asynchronous batch captioning endpoint has been enhanced for robustness. Uploaded images are now saved to temporary storage before being queued for background processing. This ensures that the image files are reliably available to the background worker, mitigating issues with temporary file lifecycles. The service now also generates tags alongside captions using spaCy NLP processing.
 
 ### Check Asynchronous Task Status
 
-*   **Endpoint:** `GET /task-status/{task_id}`
+*   **Endpoint:** `GET /async-batch-caption/status/{task_id}`
 *   **Description:** Checks the status of an asynchronous captioning task and retrieves results if completed.
 *   **Path Parameter:**
     *   `task_id`: The ID of the task returned by the `/async-batch-caption` endpoint.
 *   **Response (200 OK):**
     ```json
     {
-      "task_id": "some-unique-task-id",
-      "status": "completed",  // or "in_progress", "failed", etc.
-      "results": [
+      "task_id": "task_1672531200_a1b2c3d4",
+      "status": "COMPLETED",
+      "message": "Processing complete. 2/2 images captioned successfully in background. Total results: 2.",
+      "result": [
         {
-          "image_path": "path/to/image1.jpg",
-          "caption": "Caption for image 1."
+          "image_path": "image1.jpg",
+          "caption": "Caption for image 1.",
+          "tags": ["tag1", "tag2", "tag3"]
         },
         {
-          "image_path": "path/to/image2.jpg",
-          "caption": "Caption for image 2."
+          "image_path": "image2.jpg",
+          "caption": "Caption for image 2.",
+          "tags": ["tag4", "tag5"]
         }
       ]
     }
@@ -226,6 +215,39 @@ The service exposes the following API endpoints:
       "detail": "Error message"
     }
     ```
+
+## Tags Extraction
+
+The service now includes intelligent tags extraction from generated captions using spaCy's natural language processing capabilities.
+
+### How It Works
+
+1. **Caption Generation**: The BLIP model generates a descriptive caption for the image
+2. **NLP Processing**: The caption is processed using spaCy's English language model (`en_core_web_sm`)
+3. **Noun Phrase Extraction**: The system identifies meaningful noun phrases and individual nouns
+4. **Tag Cleaning**: Tags are cleaned by:
+   - Converting to lowercase and lemmatized forms
+   - Removing determiners (a, the) and pronouns
+   - Filtering out stop words and punctuation
+   - Removing generic terms like "image", "picture", "photo"
+   - Ensuring minimum tag length
+
+### Features
+
+- **Robust Error Handling**: Gracefully handles None inputs, empty captions, and very long text
+- **Edge Case Management**: Automatically truncates captions longer than 1000 characters
+- **Modular Design**: Tags extraction is separated into its own module for maintainability
+- **Fallback Behavior**: Returns empty tag list if extraction fails, preventing service crashes
+
+### Example
+
+For a caption like "A young woman wearing a red dress standing in a beautiful garden", the system might extract tags such as:
+- `woman`
+- `dress`
+- `garden`
+- `young woman`
+- `red dress`
+- `beautiful garden`
 
 ## Docker Deployment
 
@@ -283,27 +305,32 @@ A brief overview of the project's directory structure:
 │   ├── __init__.py
 │   ├── main.py             # FastAPI application setup, API routes
 │   ├── model.py            # BLIP model loading and captioning logic
-│   ├── api/                # API specific modules (if further structured)
+│   ├── api/                # API specific modules
 │   │   ├── __init__.py
-│   │   └── routes.py       # (Potentially where routes are defined, or in main.py)
+│   │   └── routes.py       # API endpoint definitions
 │   ├── core/               # Core components like configuration
 │   │   ├── __init__.py
-│   │   └── config.py
+│   │   ├── config.py       # Configuration settings
+│   │   ├── tags_extractor.py # spaCy-based tags extraction from captions
+│   │   └── utils.py        # Utility functions
 │   ├── models/             # Pydantic models for request/response schemas
 │   │   ├── __init__.py
-│   │   └── schemas.py
+│   │   └── schemas.py      # Data models and validation schemas
 │   └── __pycache__/        # Python bytecode cache
 ├── static/                 # Static files (e.g., for a simple frontend)
 │   └── index.html          # Example HTML page
 └── ...                     # Other files and directories
 ```
 
--   **`app/main.py`**: Contains the FastAPI application instance and defines the API endpoints.
--   **`app/model.py`**: Handles the loading of the BLIP model and the core caption generation logic.
--   **`app/core/config.py`**: (Likely) For application settings, though `run.py` handles runtime args.
+-   **`app/main.py`**: Contains the FastAPI application instance and includes the API routes.
+-   **`app/model.py`**: Handles the loading of the BLIP model, caption generation, and tags extraction logic.
+-   **`app/api/routes.py`**: Defines all API endpoints for single, batch, and async image processing.
+-   **`app/core/config.py`**: Application configuration and logging setup.
+-   **`app/core/tags_extractor.py`**: spaCy-based NLP processing for extracting meaningful tags from captions.
+-   **`app/core/utils.py`**: Utility functions for image processing and file handling.
 -   **`app/models/schemas.py`**: Defines Pydantic models for request and response data validation.
 -   **`run.py`**: The main entry point to start the application using Uvicorn, parsing command-line arguments.
--   **`static/index.html`**: A simple HTML file. If served by the application (e.g., via `StaticFiles` in FastAPI), it could be used for testing or simple interactions. The current `main.py` would need to be checked to confirm if it's being served.
+-   **`static/index.html`**: A web interface for testing the API endpoints with file uploads.
 
 ## Logging
 
@@ -311,14 +338,22 @@ Logging is handled by Uvicorn and FastAPI. The log level can be configured using
 
 ## Important Notes
 
--   **Image Access**: This service requires direct file system access to the images for synchronous endpoints. For the asynchronous batch endpoint, images are uploaded, temporarily stored by the server, and then processed. It does not handle file uploads itself in the sense of persistent storage beyond the scope of a request or background task. If integrating with a web application, that application would typically handle uploads and then provide this service with the path to the stored image for synchronous operations, or upload directly for asynchronous ones.
--   **Model Loading**: The BLIP model is loaded into memory when the service starts. This can take some time and consume significant memory, especially the larger versions of the model.
--   **Error Handling**: The API endpoints include basic error handling (e.g., for file not found or invalid file types). Check the API responses for specific error messages. Asynchronous tasks will report errors through the status endpoint.
+-   **Image Access**: This service handles file uploads directly through multipart form data. For asynchronous batch processing, images are uploaded, temporarily stored by the server, and then processed in the background.
+-   **Model Loading**: The BLIP model and spaCy English model are loaded into memory when the service starts. This can take some time and consume significant memory.
+-   **spaCy Dependency**: The tags extraction feature requires the spaCy English model (`en_core_web_sm`). Make sure to install it using `python -m spacy download en_core_web_sm` after installing the requirements.
+-   **Error Handling**: The API endpoints include comprehensive error handling with graceful fallbacks for tags extraction failures. Check the API responses for specific error messages.
+-   **Tags Quality**: The quality of extracted tags depends on the quality of the generated caption. More descriptive captions will yield better tags.
 
 ## Future Enhancements
 
-*   Endpoint to check the status and retrieve results of asynchronous tasks. (Implemented)
-*   More robust configuration management (e.g., using environment variables or a config file via `pydantic-settings`). (Implemented)
-*   More detailed error reporting and standardized error codes. (Partially addressed with per-image errors and async task status)
-*   Unit and integration tests.
+*   ✅ Endpoint to check the status and retrieve results of asynchronous tasks. (Implemented)
+*   ✅ More robust configuration management using environment variables and pydantic-settings. (Implemented)
+*   ✅ Intelligent tags extraction from captions using NLP. (Implemented)
+*   ✅ Comprehensive error handling with graceful fallbacks. (Implemented)
+*   Advanced tag filtering and categorization
+*   Support for multiple languages in tags extraction
+*   Caching mechanisms for improved performance
+*   Unit and integration tests
+*   Database integration for persistent storage
+*   Rate limiting and authentication
 *   Improved robustness of asynchronous processing by pre-saving files. (Implemented)

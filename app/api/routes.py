@@ -16,7 +16,7 @@ from ..models.schemas import (
     AsyncBatchCaptionResponse
 )
 # Updated model imports
-from ..model import generate_caption_from_image, save_upload_file_temp, remove_temp_file
+from ..model import generate_caption_from_image, generate_caption_and_tags_from_image, save_upload_file_temp, remove_temp_file
 # Keep for async batch if re-enabled
 from ..core.utils import process_image_background
 
@@ -71,14 +71,15 @@ async def caption_image(image: UploadFile = File(...)):
         # Process the image using PIL
         with Image.open(temp_path) as img_file:
             img = img_file.convert("RGB")  # Ensure RGB for model
-            caption = generate_caption_from_image(img)
+            result = generate_caption_and_tags_from_image(img)
 
         # Calculate processing time
         processing_time = time.time() - start_time
 
         return CaptionResponse(
             filename=filename,  # Use filename from temp save
-            caption=caption,
+            caption=result["caption"],
+            tags=result["tags"],
             processing_time=processing_time
         )
 
@@ -133,14 +134,15 @@ async def batch_caption_images(images: List[UploadFile] = File(...)):
             # Process the image using PIL
             with Image.open(temp_path_single) as img_file:
                 img = img_file.convert("RGB")  # Ensure RGB for model
-                caption = generate_caption_from_image(img)
+                result = generate_caption_and_tags_from_image(img)
 
             # Calculate processing time for this image
             processing_time_single = time.time() - image_start_time
 
             results.append(ImageCaptionResult(
                 image_path=actual_filename,  # Use the actual filename from save_upload_file_temp
-                caption=caption
+                caption=result["caption"],
+                tags=result["tags"]
             ))
             logger.info(
                 f"Successfully captioned {actual_filename} in {processing_time_single:.2f}s")
@@ -229,9 +231,9 @@ async def process_batch_images_async(task_id: str, prepared_files: List[Dict[str
             # File is already saved at temp_path_single.
             with Image.open(temp_path_single) as img_file:
                 img = img_file.convert("RGB")
-                caption = generate_caption_from_image(img)
+                result = generate_caption_and_tags_from_image(img)
             final_results.append(ImageCaptionResult(
-                image_path=original_filename, caption=caption))
+                image_path=original_filename, caption=result["caption"], tags=result["tags"]))
             logger.info(
                 f"Task {task_id}: Successfully captioned {original_filename} (from path: {temp_path_single})")
 

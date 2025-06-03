@@ -13,7 +13,8 @@ import os
 import tempfile
 from fastapi import UploadFile
 import asyncio  # Added for async operations
-from typing import List, Tuple  # Added for type hinting
+from typing import List, Tuple, Dict, Any  # Added for type hinting
+from .core.tags_extractor import extract_noun_phrases
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -73,6 +74,39 @@ def generate_caption_from_image(image: Image.Image) -> str:
 
     except Exception as e:
         logger.error(f"Error generating caption: {str(e)}")
+        raise
+
+
+def generate_caption_and_tags_from_image(image: Image.Image) -> Dict[str, Any]:
+    """
+    Generate both caption and tags for a PIL Image object using the BLIP model and NLP processing.
+
+    Args:
+        image (PIL.Image.Image): PIL Image object
+
+    Returns:
+        Dict[str, Any]: Dictionary containing 'caption' and 'tags' keys
+
+    Raises:
+        ValueError: If the image is invalid or can\'t be processed
+        Exception: For other unexpected errors
+    """
+    try:        # Generate caption first
+        caption = generate_caption_from_image(image)
+
+        # Extract tags from the caption
+        tags = extract_noun_phrases(caption)
+
+        logger.info(f"Generated caption: {caption}")
+        logger.info(f"Extracted {len(tags)} tags: {tags}")
+
+        return {
+            "caption": caption,
+            "tags": tags
+        }
+
+    except Exception as e:
+        logger.error(f"Error generating caption and tags: {str(e)}")
         raise
 
 

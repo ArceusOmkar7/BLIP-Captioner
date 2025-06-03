@@ -30,7 +30,8 @@
       >
         <p class="font-semibold">Service Note:</p>
         <p class="mt-1">
-          This interface allows you to generate captions for images by uploading them directly.
+          This interface allows you to generate captions for images by uploading
+          them directly.
         </p>
       </div>
 
@@ -179,7 +180,10 @@
 
         // Single image caption generation
         generateSingleBtn.addEventListener("click", async () => {
-          if (!singleImageUpload.files || singleImageUpload.files.length === 0) {
+          if (
+            !singleImageUpload.files ||
+            singleImageUpload.files.length === 0
+          ) {
             error.textContent = "Please select an image file.";
             error.classList.remove("hidden");
             singleResult.textContent = "No image selected.";
@@ -221,6 +225,20 @@
               <p><strong class="font-semibold text-gray-800">Caption:</strong> <span class="text-gray-700">${
                 data.caption
               }</span></p>
+              <p><strong class="font-semibold text-gray-800">Tags:</strong> 
+                <span class="text-gray-700">
+                  ${
+                    data.tags && data.tags.length > 0
+                      ? data.tags
+                          .map(
+                            (tag) =>
+                              `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">${tag}</span>`
+                          )
+                          .join("")
+                      : '<span class="text-gray-500 italic">No tags extracted</span>'
+                  }
+                </span>
+              </p>
               <p><strong class="font-semibold text-gray-800">Processing Time:</strong> <span class="text-gray-700">${data.processing_time.toFixed(
                 2
               )}s</span></p>
@@ -251,7 +269,7 @@
 
           try {
             const formData = new FormData();
-            
+
             // Append all files to formData
             for (let i = 0; i < batchImageUpload.files.length; i++) {
               formData.append("images", batchImageUpload.files[i]);
@@ -271,18 +289,46 @@
             // Format results
             let resultsHTML = `
               <div class="mb-4 text-gray-600">
-                <p>Total processing time: ${data.total_processing_time.toFixed(2)}s</p>
+                <p>Total processing time: ${data.total_processing_time.toFixed(
+                  2
+                )}s</p>
                 <p>Total images processed: ${data.results.length}</p>
               </div>
               <div class="grid gap-4">
             `;
 
             data.results.forEach((result) => {
+              const isError = result.error;
               resultsHTML += `
-                <div class="p-3 border border-gray-200 rounded-md bg-white">
-                  <p><strong class="font-semibold">Image:</strong> ${result.filename}</p>
-                  <p><strong class="font-semibold">Caption:</strong> ${result.caption}</p>
-                  <p><strong class="font-semibold">Processing Time:</strong> ${result.processing_time.toFixed(2)}s</p>
+                <div class="p-3 border ${
+                  isError
+                    ? "border-red-200 bg-red-50"
+                    : "border-gray-200 bg-white"
+                } rounded-md">
+                  <p><strong class="font-semibold">Image:</strong> ${
+                    result.image_path
+                  }</p>
+                  ${
+                    isError
+                      ? `<p><strong class="font-semibold text-red-600">Error:</strong> <span class="text-red-600">${result.error}</span></p>`
+                      : `
+                      <p><strong class="font-semibold">Caption:</strong> ${
+                        result.caption
+                      }</p>
+                      <p><strong class="font-semibold">Tags:</strong> 
+                        ${
+                          result.tags && result.tags.length > 0
+                            ? result.tags
+                                .map(
+                                  (tag) =>
+                                    `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">${tag}</span>`
+                                )
+                                .join("")
+                            : '<span class="text-gray-500 italic">No tags extracted</span>'
+                        }
+                      </p>
+                    `
+                  }
                 </div>
               `;
             });
@@ -290,17 +336,22 @@
             resultsHTML += "</div>";
 
             // Add failed images info if available
-            if (data.failed_images && Object.keys(data.failed_images).length > 0) {
+            if (
+              data.failed_images &&
+              Object.keys(data.failed_images).length > 0
+            ) {
               resultsHTML += `
                 <div class="mt-4 p-3 border border-orange-200 rounded-md bg-orange-50">
                   <p class="font-semibold text-orange-700">Failed Images:</p>
                   <ul class="list-disc pl-5 mt-2 text-orange-700">
               `;
-              
-              for (const [imageName, errorMsg] of Object.entries(data.failed_images)) {
+
+              for (const [imageName, errorMsg] of Object.entries(
+                data.failed_images
+              )) {
                 resultsHTML += `<li>${imageName}: ${errorMsg}</li>`;
               }
-              
+
               resultsHTML += `
                   </ul>
                 </div>
@@ -308,7 +359,6 @@
             }
 
             batchResults.innerHTML = resultsHTML;
-
           } catch (err) {
             error.textContent = "Error: " + err.message;
             error.classList.remove("hidden");

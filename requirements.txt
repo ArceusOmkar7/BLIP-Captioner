@@ -7,3 +7,4 @@ Pillow
 pydantic
 python-multipart
 pydantic-settings
+spacy
