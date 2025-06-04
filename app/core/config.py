@@ -24,10 +24,10 @@ class AppSettings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     WORKERS: int = 1
-    RELOAD: bool = True
+    RELOAD: bool = False  # Disabled to prevent model double loading
     LOG_LEVEL: str = "info"
     # Example for model configuration, can be expanded
-    MODEL_NAME: str = "Salesforce/blip-image-captioning-large"
+    MODEL_NAME: str = "Salesforce/blip-image-captioning-base"
     # For local model path, ensure it's an absolute path or resolvable
     MODEL_PATH: Optional[str] = None
 
