@@ -24,39 +24,28 @@ logger = logging.getLogger(__name__)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"Using device: {device}")
 
-# Global variables to store model and processor
-processor = None
-model = None
+# Load model and processor at module import time
+try:
+    from .core.config import settings
+    model_name = settings.MODEL_NAME
 
+    logger.info(f"Loading BLIP model at startup: {model_name}")
 
-def load_model():
-    """Load BLIP model and processor lazily."""
-    global processor, model
+    # Initialize the BLIP processor for image preprocessing with use_fast=True
+    processor = BlipProcessor.from_pretrained(
+        model_name,
+        use_fast=True
+    )
 
-    if processor is None or model is None:
-        try:
-            from .core.config import settings
-            model_name = settings.MODEL_NAME
+    # Initialize the BLIP model for caption generation
+    model = BlipForConditionalGeneration.from_pretrained(
+        model_name
+    ).to(device)
 
-            logger.info(f"Loading BLIP model: {model_name}")
-
-            # Initialize the BLIP processor for image preprocessing with use_fast=True
-            processor = BlipProcessor.from_pretrained(
-                model_name,
-                use_fast=True
-            )
-
-            # Initialize the BLIP model for caption generation
-            model = BlipForConditionalGeneration.from_pretrained(
-                model_name
-            ).to(device)
-
-            logger.info("BLIP model and processor loaded successfully")
-        except Exception as e:
-            logger.error(f"Error loading BLIP model: {str(e)}")
-            raise
-
-    return processor, model
+    logger.info("BLIP model and processor loaded successfully at startup")
+except Exception as e:
+    logger.error(f"Error loading BLIP model at startup: {str(e)}")
+    raise
 
 
 def generate_caption_from_image(image: Image.Image) -> str:
@@ -67,16 +56,11 @@ def generate_caption_from_image(image: Image.Image) -> str:
         image (PIL.Image.Image): PIL Image object
 
     Returns:
-        str: Generated caption describing the image
-
-    Raises:
+        str: Generated caption describing the image    Raises:
         ValueError: If the image is invalid or can\'t be processed
         Exception: For other unexpected errors
     """
     try:
-        # Load model lazily
-        processor, model = load_model()
-
         # Ensure image is in RGB format
         if image.mode != "RGB":
             image = image.convert("RGB")
@@ -103,7 +87,9 @@ def generate_caption_and_tags_from_image(image: Image.Image) -> Dict[str, Any]:
     Generate both caption and tags for a PIL Image object using the BLIP model and NLP processing.
 
     Args:
-        image (PIL.Image.Image): PIL Image object    Returns:
+        image (PIL.Image.Image): PIL Image object
+
+    Returns:
         Dict[str, Any]: Dictionary containing 'caption' and 'tags' keys
 
     Raises:

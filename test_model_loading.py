@@ -5,29 +5,26 @@ Test script to verify model loading behavior
 from io import BytesIO
 import requests
 from PIL import Image
-from app.model import generate_caption_from_image, load_model
+from app.model import generate_caption_from_image, processor, model
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_model_loading():
-    """Test that model loads correctly and only once"""
+    """Test that model loads correctly at startup"""
     print("Testing model loading...")
 
-    # First call should load the model
-    print("First call to load_model()...")
-    processor1, model1 = load_model()
-    print(f"Processor type: {type(processor1)}")
-    print(f"Model type: {type(model1)}")
+    # Import the model components (they should already be loaded at startup)
+    print("Checking if model and processor are loaded...")
+    from app.model import processor, model
 
-    # Second call should return same instances
-    print("\nSecond call to load_model()...")
-    processor2, model2 = load_model()
+    print(f"Processor type: {type(processor)}")
+    print(f"Model type: {type(model)}")
 
-    # Check if they are the same instances (should be due to global variables)
-    print(f"Same processor instance: {processor1 is processor2}")
-    print(f"Same model instance: {model1 is model2}")
+    # Verify they are not None
+    print(f"Processor loaded: {processor is not None}")
+    print(f"Model loaded: {model is not None}")
 
     # Test with a simple image
     print("\nTesting caption generation...")
