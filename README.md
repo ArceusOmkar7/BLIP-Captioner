@@ -332,6 +332,27 @@ A brief overview of the project's directory structure:
 -   **`run.py`**: The main entry point to start the application using Uvicorn, parsing command-line arguments.
 -   **`static/index.html`**: A web interface for testing the API endpoints with file uploads.
 
+## Performance Optimizations (Updated June 2025)
+
+Recent optimizations have been implemented to improve the service's performance and reliability:
+
+### Model Loading Improvements
+- **Startup Loading**: The BLIP model and processor are now loaded once at application startup instead of lazy loading
+- **Reduced Memory Usage**: Eliminated duplicate model loading that could occur during development with auto-reload
+- **Fast Tokenization**: Added `use_fast=True` parameter to the BLIP processor for improved tokenization performance
+- **No Reload by Default**: Auto-reload is disabled by default in production to prevent unnecessary model reloading
+
+### Benefits
+- **Faster API Response Times**: No model loading delay on first request
+- **Consistent Performance**: Predictable response times for all requests
+- **Memory Efficiency**: Single model instance loaded once at startup
+- **Production Ready**: Optimized configuration for production deployments
+
+### Configuration Changes
+- `RELOAD=False` by default in `app/core/config.py` to prevent double loading
+- Model loading occurs at module import time in `app/model.py`
+- Improved error handling during startup model loading
+
 ## Logging
 
 Logging is handled by Uvicorn and FastAPI. The log level can be configured using the `--log-level` argument when using `run.py`. Logs will typically be output to the console.
@@ -339,10 +360,12 @@ Logging is handled by Uvicorn and FastAPI. The log level can be configured using
 ## Important Notes
 
 -   **Image Access**: This service handles file uploads directly through multipart form data. For asynchronous batch processing, images are uploaded, temporarily stored by the server, and then processed in the background.
--   **Model Loading**: The BLIP model and spaCy English model are loaded into memory when the service starts. This can take some time and consume significant memory.
+-   **Model Loading**: The BLIP model and spaCy English model are loaded into memory at application startup for optimal performance. This ensures fast response times but requires adequate memory allocation during service initialization.
+-   **Startup Time**: Initial service startup may take longer due to model loading, but subsequent requests will be processed immediately without loading delays.
 -   **spaCy Dependency**: The tags extraction feature requires the spaCy English model (`en_core_web_sm`). Make sure to install it using `python -m spacy download en_core_web_sm` after installing the requirements.
 -   **Error Handling**: The API endpoints include comprehensive error handling with graceful fallbacks for tags extraction failures. Check the API responses for specific error messages.
 -   **Tags Quality**: The quality of extracted tags depends on the quality of the generated caption. More descriptive captions will yield better tags.
+-   **Production Configuration**: For production deployments, auto-reload is disabled by default to prevent unnecessary model reloading and ensure optimal performance.
 
 ## Future Enhancements
 
@@ -350,10 +373,11 @@ Logging is handled by Uvicorn and FastAPI. The log level can be configured using
 *   ✅ More robust configuration management using environment variables and pydantic-settings. (Implemented)
 *   ✅ Intelligent tags extraction from captions using NLP. (Implemented)
 *   ✅ Comprehensive error handling with graceful fallbacks. (Implemented)
+*   ✅ Performance optimizations for model loading and tokenization. (Implemented June 2025)
+*   ✅ Improved robustness of asynchronous processing by pre-saving files. (Implemented)
 *   Advanced tag filtering and categorization
 *   Support for multiple languages in tags extraction
 *   Caching mechanisms for improved performance
 *   Unit and integration tests
 *   Database integration for persistent storage
 *   Rate limiting and authentication
-*   Improved robustness of asynchronous processing by pre-saving files. (Implemented)
